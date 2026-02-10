@@ -188,7 +188,7 @@ async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
         image = lines[0]
         text = "\n".join(lines[1:])
-   else:
+    else:
         text = "\n".join(lines)
 
 
@@ -263,4 +263,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
