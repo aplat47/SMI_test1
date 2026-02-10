@@ -183,13 +183,13 @@ async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.partition(" ")[2]  # весь текст после команды /sendall
 
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    image = None
+image = None
 
-    if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-        image = lines[0]
-        text = "\n".join(lines[1:])
-    else:
-        text = "\n".join(lines)
+if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+    image = lines[0]
+    text = "\n".join(lines[1:])
+else:
+    text = "\n".join(lines)
 
 
     try:
@@ -227,14 +227,12 @@ async def send_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.partition(" ")[2]  # весь текст после команды
     text = text.partition(" ")[2]  # весь текст после user_id
 
-   lines = [line.strip() for line in text.splitlines() if line.strip()]
-   image = None
-
-   if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+   llines = text.splitlines()
+image = None
+if lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
     image = lines[0]
     text = "\n".join(lines[1:])
-   else:
-    text = "\n".join(lines)
+
 
 
     try:
@@ -263,5 +261,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
