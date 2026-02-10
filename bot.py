@@ -15,49 +15,67 @@ from telegram.ext import (
 from telegram.error import TelegramError
 import asyncio
 import os
+from datetime import datetime
 
-TOKEN = "8350316731:AAFJHJhnXJZCETz9F1opdT8v9BECxNk_FQY"  # ваш токен
+TOKEN = "8385134574:AAFEPPiQD6DnT1eIXUcho98tETB5smNNIBQ"  # ваш токен
 USERS_FILE = "users.txt"
 DATA_FILE = "registrations.txt"
+GREETINGS_FILE = "greetings.txt"  # для ежедневного приветствия
 ADMIN_ID = 268936036  # ваш Telegram ID
 
-# Хранилище состояний пользователей
-user_state = {}
+user_state = {}  # состояния пользователей
 
 # ----------------- ФУНКЦИИ -----------------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     first_name = update.message.from_user.first_name
+    today = datetime.now().strftime("%Y-%m-%d")
+    greeted_today = False
 
-    # сохраняем user_id
+    # Проверяем, здороваемся ли уже сегодня
+    if os.path.exists(GREETINGS_FILE):
+        with open(GREETINGS_FILE, "r", encoding="utf-8") as f:
+            for line in f.read().splitlines():
+                uid, date_str = line.split("|")
+                if uid == str(user_id) and date_str == today:
+                    greeted_today = True
+                    break
+
+    # Сохраняем user_id, если новый
     with open(USERS_FILE, "a+", encoding="utf-8") as f:
         f.seek(0)
         users = f.read().splitlines()
         if str(user_id) not in users:
             f.write(f"{user_id}\n")
 
-    text = (
-        f"{first_name}, добро пожаловать в бот SMI 👋\n\n"
-        "Он поможет вам зарегистрироваться на вебинар\n"
-        "«Инструменты инвестиций в 2026 году» и получить подарок – Инструкцию для новичков "
-        "\"Как открыть счет для торгов и правильно выбрать платформу/банк\" 🎁\n\n"
-        "Чтобы завершить регистрацию, оставьте ваш номер телефона по кнопке ниже 👇🏻"
-    )
+    # Если пользователь ещё не здоровается сегодня
+    if not greeted_today:
+        text = (
+            f"{first_name}, добро пожаловать в бот SMI 👋\n\n"
+            "Он поможет вам зарегистрироваться на вебинар\n"
+            "«Инструменты инвестиций в 2026 году» и получить подарок – Инструкцию для новичков "
+            "\"Как открыть счет для торгов и правильно выбрать платформу/банк\" 🎁\n\n"
+            "Чтобы завершить регистрацию, оставьте ваш номер телефона по кнопке ниже 👇🏻"
+        )
 
-    keyboard = ReplyKeyboardMarkup(
-        [[KeyboardButton("📲 Отправить имя и телефон", request_contact=True)]],
-        resize_keyboard=True,
-        one_time_keyboard=True
-    )
+        keyboard = ReplyKeyboardMarkup(
+            [[KeyboardButton("📲 Отправить имя и телефон", request_contact=True)]],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
 
-    await update.message.reply_text(text, reply_markup=keyboard)
+        await update.message.reply_text(text, reply_markup=keyboard)
+
+        # Сохраняем факт приветствия
+        with open(GREETINGS_FILE, "a", encoding="utf-8") as f:
+            f.write(f"{user_id}|{today}\n")
+
     user_state[user_id] = "WAIT_CONTACT"
 
 
 async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-
     if user_state.get(user_id) != "WAIT_CONTACT":
         return
 
@@ -99,7 +117,6 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [[InlineKeyboardButton("🎁 ЗАБРАТЬ ПОДАРОК", url="https://t.me/+a163cq-juqRjMzMy")]]
     )
 
-    # Проверяем файл webinar.jpg
     photo_path = "webinar.jpg"
     if os.path.exists(photo_path):
         with open(photo_path, "rb") as photo:
@@ -145,7 +162,6 @@ async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❗ Использование:\n/sendall текст рассылки [ссылка_или_файл]")
         return
 
-    # Проверка: первый аргумент может быть картинкой
     image = None
     if context.args[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
         image = context.args[0]
@@ -174,7 +190,7 @@ async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Рассылка завершена\nОтправлено: {sent}\nОшибок: {failed}")
 
 
-# ----------------- ПЕРСОНАЛЬНОЕ СООБЩЕНИЕ /send -----------------
+# ----------------- ПЕРСОНАЛЬНОЕ СООБЩЕНИЕ -----------------
 async def send_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
@@ -185,7 +201,6 @@ async def send_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = context.args[0]
 
-    # Проверка: первый аргумент после user_id это картинка?
     image = None
     if context.args[1].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
         image = context.args[1]
@@ -211,8 +226,8 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, fallback_text))
-    app.add_handler(CommandHandler("sendall", send_all))  # массовая рассылка
-    app.add_handler(CommandHandler("send", send_user))    # персональное сообщение
+    app.add_handler(CommandHandler("sendall", send_all))
+    app.add_handler(CommandHandler("send", send_user))
 
     app.run_polling()
 
