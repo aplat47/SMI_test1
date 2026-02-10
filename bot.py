@@ -22,6 +22,10 @@ USERS_FILE = "users.txt"
 DATA_FILE = "registrations.txt"
 ADMIN_ID = 268936036  # ваш Telegram ID
 
+# ===== пути =====
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MEDIA_DIR = os.path.join(BASE_DIR, "media")
+
 # Хранилище состояний пользователей
 user_state = {}
 
@@ -117,23 +121,54 @@ async def fallback_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def send_photo_or_text(bot, chat_id, text, image=None, admin_id=None):
     try:
         if image:
-            if not image.startswith("http"):
-                if not os.path.exists(image):
-                    if admin_id:
-                        await bot.send_message(chat_id=admin_id,
-                                               text=f"⚠ Файл {image} не найден. Отправка текста без картинки.")
-                    await bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.HTML)
-                    return
-                else:
-                    with open(image, "rb") as photo:
-                        await bot.send_photo(chat_id=chat_id, photo=photo, caption=text, parse_mode=ParseMode.HTML)
-            else:
-                await bot.send_photo(chat_id=chat_id, photo=image, caption=text, parse_mode=ParseMode.HTML)
+            # URL
+            if image.startswith("http"):
+                await bot.send_photo(
+                    chat_id=chat_id,
+                    photo=image,
+                    caption=text,
+                    parse_mode=ParseMode.HTML
+                )
+                return
+
+            # Локальный файл
+            image_path = os.path.join(MEDIA_DIR, image)
+
+            if not os.path.exists(image_path):
+                if admin_id:
+                    await bot.send_message(
+                        chat_id=admin_id,
+                        text=f"⚠ Картинка не найдена:\n{image_path}"
+                    )
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    parse_mode=ParseMode.HTML
+                )
+                return
+
+            with open(image_path, "rb") as photo:
+                await bot.send_photo(
+                    chat_id=chat_id,
+                    photo=photo,
+                    caption=text,
+                    parse_mode=ParseMode.HTML
+                )
+
         else:
-            await bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.HTML)
+            await bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                parse_mode=ParseMode.HTML
+            )
+
     except TelegramError as e:
         if admin_id:
-            await bot.send_message(chat_id=admin_id, text=f"❌ Ошибка при отправке: {e}")
+            await bot.send_message(
+                chat_id=admin_id,
+                text=f"❌ Ошибка отправки:\n{e}"
+            )
+
 
 
 # ----------------- РАССЫЛКА ВСЕМ -----------------
