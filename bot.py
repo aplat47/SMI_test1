@@ -182,11 +182,15 @@ async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text.partition(" ")[2]  # весь текст после команды /sendall
 
-    lines = text.splitlines()
-    image = None
-    if lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-        image = lines[0]
-        text = "\n".join(lines[1:])
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+image = None
+
+if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+    image = lines[0]
+    text = "\n".join(lines[1:])
+else:
+    text = "\n".join(lines)
+
 
     try:
         with open(USERS_FILE, encoding="utf-8") as f:
@@ -223,11 +227,15 @@ async def send_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.partition(" ")[2]  # весь текст после команды
     text = text.partition(" ")[2]  # весь текст после user_id
 
-    lines = text.splitlines()
-    image = None
-    if lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-        image = lines[0]
-        text = "\n".join(lines[1:])
+   lines = [line.strip() for line in text.splitlines() if line.strip()]
+image = None
+
+if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+    image = lines[0]
+    text = "\n".join(lines[1:])
+else:
+    text = "\n".join(lines)
+
 
     try:
         chat = await context.bot.get_chat(int(user_id))
