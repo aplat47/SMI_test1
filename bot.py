@@ -343,7 +343,9 @@ async def admin_button_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 # ================== ОБРАБОТКА ТЕКСТА АДМИНА ==================
 async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID: return
+    if update.effective_user.id != ADMIN_ID:
+        return
+
     admin_id = update.effective_user.id
     if admin_id not in admin_state or admin_state[admin_id]["action"] is None:
         return
@@ -352,48 +354,98 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     data = admin_state[admin_id]["data"]
     text = update.message.text.strip()
 
-    # ------------------------ sendall ------------------------
+    def split_image_and_text(text: str):
+        parts = text.split()
+        if parts and parts[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+            return parts[0], " ".join(parts[1:])
+        return None, text
+
+    # ---------- РАССЫЛКА ВСЕМ ----------
     if action == "sendall":
-        args = text.split()
-        first_arg = args[0]
-        if first_arg.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-            image = first_arg
-            message_text = " ".join(args[1:])
-        else:
-            image = None
-            message_text = text
-        context.args = [image] + [message_text] if image else [message_text]
+        image, message_text = split_image_and_text(text)
+        context.args = [image] + message_text.split() if image else message_text.split()
         update.message.text = "/sendall " + " ".join(context.args)
         await send_all(update, context)
         admin_state[admin_id] = {"action": None, "data": {}}
 
-    # ------------------------ send ------------------------
+    # ---------- ПЕРСОНАЛЬНАЯ ----------
     elif action == "send":
         if "user_id" not in data:
             data["user_id"] = text
-            await update.message.reply_text("Теперь введите имя картинки (если есть) и текст для пользователя:")
+            await update.message.reply_text("Введите имя картинки (если есть) и текст:")
         else:
-            args = text.split()
-            first_arg = args[0]
-            if first_arg.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-                image = first_arg
-                message_text = " ".join(args[1:])
-            else:
-                image = None
-                message_text = text
-            context.args = [data["user_id"]] + ([image] if image else []) + [message_text]
-            update.message.text = f"/send {data['user_id']} {' '.join(context.args[1:])}"
+            image, message_text = split_image_and_text(text)
+            context.args = [data["user_id"]] + ([image] if image else []) + message_text.split()
+            update.message.text = f"/send {' '.join(context.args)}"
             await send_user(update, context)
             admin_state[admin_id] = {"action": None, "data": {}}
 
-    # ------------------------ sendsegment ------------------------
+    # ---------- СЕГМЕНТ ----------
     elif action == "sendsegment":
         if "segment" not in data:
             data["segment"] = text
-            await update.message.reply_text("Теперь введите имя картинки (если есть) и текст для рассылки сегменту:")
+            await update.message.reply_text("Введите имя картинки (если есть) и текст:")
         else:
-            args = text.split()
-            first_arg = args[0]
-            if first_arg.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-                image = first_arg
-                message_text = " ".join(args[
+            image, message_text = split_image_and_text(text)
+            context.args = [data["segment"]] + ([image] if image else []) + message_text.split()
+            update.message.text = f"/sendsegment {' '.join(context.args)}"
+            await send_segment(update, context)
+            admin_state[admin_id] = {"action": None, "data": {}}
+
+    # ---------- ОТЛОЖЕННАЯ ----------
+    elif action == "schedule":
+        if "time" not in data:
+            data["time"] = text
+            await update.message.reply_text("Введите имя картинки (если есть) и текст:")
+        else:
+            image, message_text = split_image_and_text(text)
+            context.args = [data["time"]] + ([image] if image else []) + message_text.split()
+            update.message.text = f"/schedule {' '.join(context.args)}"
+            await schedule_send(update, context)
+            admin_state[admin_id] = {"action": None, "data": {}}
+
+    # ---------- ДОБАВИТЬ В СЕГМЕНТ ----------
+    elif action == "addsegment":
+        if "user_id" not in data:
+            data["user_id"] = text
+            await update.message.reply_text("Введите название сегмента:")
+        else:
+            context.args = [data["user_id"], text]
+            await add_segment(update, context)
+            admin_state[admin_id] = {"action": None, "data": {}}
+
+    # ---------- ПОКАЗАТЬ СЕГМЕНТ ----------
+    elif action == "showsegment":
+        context.args = [text]
+        await show_segment(update, context)
+        admin_state[admin_id] = {"action": None, "data": {}}
+
+
+# ================== MAIN ==================
+def main():
+    app = ApplicationBuilder().token(TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+
+    app.add_handler(CommandHandler("sendall", send_all))
+    app.add_handler(CommandHandler("send", send_user))
+    app.add_handler(CommandHandler("sendsegment", send_segment))
+    app.add_handler(CommandHandler("schedule", schedule_send))
+    app.add_handler(CommandHandler("addsegment", add_segment))
+    app.add_handler(CommandHandler("showsegment", show_segment))
+
+    app.add_handler(CommandHandler("admin", admin_panel))
+    app.add_handler(MessageHandler(
+        filters.Regex(r"^(✅ Рассылка всем|📬 Персональная рассылка|🏷 Рассылка сегменту|⏰ Отложенная рассылка|➕ Добавить в сегмент|📄 Показать сегмент)$"),
+        admin_button_handler
+    ))
+
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_text_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, fallback_text))
+
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()
