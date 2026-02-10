@@ -17,11 +17,11 @@ import asyncio
 import os
 from datetime import datetime
 
-TOKEN = "8385134574:AAFEPPiQD6DnT1eIXUcho98tETB5smNNIBQ"  # ваш токен
+TOKEN = "8385134574:AAFEPPiQD6DnT1eIXUcho98tETB5smNNIBQ"  # твой токен
 USERS_FILE = "users.txt"
 DATA_FILE = "registrations.txt"
 GREETINGS_FILE = "greetings.txt"  # для ежедневного приветствия
-ADMIN_ID = 268936036  # ваш Telegram ID
+ADMIN_ID = 268936036  # твой Telegram ID
 
 user_state = {}  # состояния пользователей
 
@@ -35,19 +35,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Проверяем, здороваемся ли уже сегодня
     if os.path.exists(GREETINGS_FILE):
-        with open(GREETINGS_FILE, "r", encoding="utf-8") as f:
-            for line in f.read().splitlines():
-                uid, date_str = line.split("|")
-                if uid == str(user_id) and date_str == today:
-                    greeted_today = True
-                    break
+        try:
+            with open(GREETINGS_FILE, "r", encoding="utf-8") as f:
+                for line in f.read().splitlines():
+                    if "|" not in line:
+                        continue
+                    uid, date_str = line.split("|")
+                    if uid == str(user_id) and date_str == today:
+                        greeted_today = True
+                        break
+        except Exception as e:
+            print(f"Ошибка чтения {GREETINGS_FILE}: {e}")
 
     # Сохраняем user_id, если новый
-    with open(USERS_FILE, "a+", encoding="utf-8") as f:
-        f.seek(0)
-        users = f.read().splitlines()
-        if str(user_id) not in users:
-            f.write(f"{user_id}\n")
+    try:
+        with open(USERS_FILE, "a+", encoding="utf-8") as f:
+            f.seek(0)
+            users = f.read().splitlines()
+            if str(user_id) not in users:
+                f.write(f"{user_id}\n")
+    except Exception as e:
+        print(f"Ошибка записи в {USERS_FILE}: {e}")
 
     # Если пользователь ещё не здоровается сегодня
     if not greeted_today:
@@ -68,8 +76,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(text, reply_markup=keyboard)
 
         # Сохраняем факт приветствия
-        with open(GREETINGS_FILE, "a", encoding="utf-8") as f:
-            f.write(f"{user_id}|{today}\n")
+        try:
+            with open(GREETINGS_FILE, "a", encoding="utf-8") as f:
+                f.write(f"{user_id}|{today}\n")
+        except Exception as e:
+            print(f"Ошибка записи в {GREETINGS_FILE}: {e}")
 
     user_state[user_id] = "WAIT_CONTACT"
 
@@ -84,19 +95,25 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     phone = contact.phone_number
 
     # Сохраняем в файл
-    with open(DATA_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{name} | {phone}\n")
+    try:
+        with open(DATA_FILE, "a", encoding="utf-8") as f:
+            f.write(f"{name} | {phone}\n")
+    except Exception as e:
+        print(f"Ошибка записи в {DATA_FILE}: {e}")
 
     # Сохраняем user_id ещё раз (на всякий случай)
-    with open(USERS_FILE, "a+", encoding="utf-8") as f:
-        f.seek(0)
-        users = f.read().splitlines()
-        if str(user_id) not in users:
-            f.write(f"{user_id}\n")
+    try:
+        with open(USERS_FILE, "a+", encoding="utf-8") as f:
+            f.seek(0)
+            users = f.read().splitlines()
+            if str(user_id) not in users:
+                f.write(f"{user_id}\n")
+    except Exception as e:
+        print(f"Ошибка записи в {USERS_FILE}: {e}")
 
     await update.message.reply_text("Спасибо! Регистрируем вас...")
 
-    # --- Сообщение 2: картинка + текст + кнопка ---
+    # Сообщение с картинкой и кнопкой
     text = (
         f"{name}, поздравляю! 🎉\n\n"
         "Вы успешно зарегистрированы на вебинар\n"
@@ -151,9 +168,10 @@ async def send_photo_or_text(bot, chat_id, text, image=None, admin_id=None):
     except TelegramError as e:
         if admin_id:
             await bot.send_message(chat_id=admin_id, text=f"❌ Ошибка при отправке: {e}")
+        print(f"Ошибка при отправке пользователю {chat_id}: {e}")
 
 
-# ----------------- РАССЫЛКА -----------------
+# ----------------- МАССОВАЯ РАССЫЛКА -----------------
 async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
@@ -184,7 +202,8 @@ async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_photo_or_text(context.bot, int(user_id), text, image, admin_id=update.effective_user.id)
             sent += 1
             await asyncio.sleep(0.05)
-        except:
+        except Exception as e:
+            print(f"Ошибка при рассылке пользователю {user_id}: {e}")
             failed += 1
 
     await update.message.reply_text(f"✅ Рассылка завершена\nОтправлено: {sent}\nОшибок: {failed}")
@@ -217,6 +236,7 @@ async def send_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ Сообщение отправлено пользователю {user_id}")
     except TelegramError as e:
         await update.message.reply_text(f"❌ Не удалось отправить сообщение: {e}")
+        print(f"Ошибка при отправке персонального сообщения: {e}")
 
 
 # ----------------- MAIN -----------------
