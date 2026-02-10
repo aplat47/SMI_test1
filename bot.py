@@ -352,19 +352,26 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     action = admin_state[admin_id]["action"]
     data = admin_state[admin_id]["data"]
-    text = update.message.text.strip()
+    text = update.message.text.rstrip()
 
-    def split_image_and_text(text: str):
-        parts = text.split()
+    def split_image_and_text(raw_text: str):
+        """
+        Корректно отделяет имя картинки от текста,
+        СОХРАНЯЯ переносы строк и абзацы
+        """
+        raw_text = raw_text.lstrip()
+        parts = raw_text.split(maxsplit=1)
+
         if parts and parts[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-            return parts[0], " ".join(parts[1:])
-        return None, text
+            image = parts[0]
+            message = parts[1] if len(parts) > 1 else ""
+            return image, message
+        return None, raw_text
 
     # ---------- РАССЫЛКА ВСЕМ ----------
     if action == "sendall":
         image, message_text = split_image_and_text(text)
-        context.args = [image] + message_text.split() if image else message_text.split()
-        update.message.text = "/sendall " + " ".join(context.args)
+        context.args = [image] + [message_text] if image else [message_text]
         await send_all(update, context)
         admin_state[admin_id] = {"action": None, "data": {}}
 
@@ -375,8 +382,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text("Введите имя картинки (если есть) и текст:")
         else:
             image, message_text = split_image_and_text(text)
-            context.args = [data["user_id"]] + ([image] if image else []) + message_text.split()
-            update.message.text = f"/send {' '.join(context.args)}"
+            context.args = [data["user_id"]] + ([image] if image else []) + [message_text]
             await send_user(update, context)
             admin_state[admin_id] = {"action": None, "data": {}}
 
@@ -387,8 +393,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text("Введите имя картинки (если есть) и текст:")
         else:
             image, message_text = split_image_and_text(text)
-            context.args = [data["segment"]] + ([image] if image else []) + message_text.split()
-            update.message.text = f"/sendsegment {' '.join(context.args)}"
+            context.args = [data["segment"]] + ([image] if image else []) + [message_text]
             await send_segment(update, context)
             admin_state[admin_id] = {"action": None, "data": {}}
 
@@ -399,8 +404,7 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text("Введите имя картинки (если есть) и текст:")
         else:
             image, message_text = split_image_and_text(text)
-            context.args = [data["time"]] + ([image] if image else []) + message_text.split()
-            update.message.text = f"/schedule {' '.join(context.args)}"
+            context.args = [data["time"]] + ([image] if image else []) + [message_text]
             await schedule_send(update, context)
             admin_state[admin_id] = {"action": None, "data": {}}
 
@@ -449,3 +453,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
