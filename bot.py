@@ -82,6 +82,7 @@ async def send_photo_or_text(bot, chat_id, text, image=None, admin_id=None):
 
     except RetryAfter as e:
         await asyncio.sleep(e.retry_after)
+        text = text.replace("\n", "<br>")
         await send_photo_or_text(bot, chat_id, text, image, admin_id)
     except TelegramError as e:
         if admin_id:
@@ -177,6 +178,7 @@ async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sent = failed = 0
     for user_id in users:
         try:
+            text = text.replace("\n", "<br>")
             await send_photo_or_text(context.bot, int(user_id), text, image, admin_id=update.effective_user.id)
             sent += 1
             await asyncio.sleep(0.05)
@@ -202,6 +204,7 @@ async def send_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat = await context.bot.get_chat(int(target_user_id))
         full_name = f"{chat.first_name or ''} {chat.last_name or ''}".strip()
         personalized_text = f"Привет, {full_name}!\n\n{text}" if full_name else text
+        text = text.replace("\n", "<br>")
         await send_photo_or_text(context.bot, int(target_user_id), personalized_text, image, admin_id=update.effective_user.id)
         await update.message.reply_text(f"✅ Сообщение отправлено пользователю {target_user_id}")
     except TelegramError as e:
@@ -444,5 +447,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
