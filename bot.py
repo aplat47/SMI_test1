@@ -177,20 +177,21 @@ async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        await update.message.reply_text("❗ Использование:\n/sendall текст рассылки с абзацами и HTML")
+        await update.message.reply_text(
+            "❗ Использование:\n/sendall\nимя_картинки.jpg\nтекст с абзацами и HTML"
+        )
         return
 
-    text = update.message.text.partition(" ")[2]  # весь текст после команды /sendall
+    raw_text = update.message.text.partition(" ")[2]
 
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-image = None
+    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+    image = None
 
-if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-    image = lines[0]
-    text = "\n".join(lines[1:])
-else:
-    text = "\n".join(lines)
-
+    if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+        image = lines[0]
+        text = "\n".join(lines[1:])
+    else:
+        text = "\n".join(lines)
 
     try:
         with open(USERS_FILE, encoding="utf-8") as f:
@@ -204,14 +205,21 @@ else:
 
     for user_id in users:
         try:
-            await send_photo_or_text(context.bot, int(user_id), text, image, admin_id=update.effective_user.id)
+            await send_photo_or_text(
+                context.bot,
+                int(user_id),
+                text,
+                image,
+                admin_id=update.effective_user.id
+            )
             sent += 1
             await asyncio.sleep(0.05)
-        except:
+        except Exception:
             failed += 1
 
-    await update.message.reply_text(f"✅ Рассылка завершена\nОтправлено: {sent}\nОшибок: {failed}")
-
+    await update.message.reply_text(
+        f"✅ Рассылка завершена\nОтправлено: {sent}\nОшибок: {failed}"
+    )
 
 # ----------------- ПЕРСОНАЛЬНОЕ СООБЩЕНИЕ -----------------
 async def send_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -219,31 +227,47 @@ async def send_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if len(context.args) < 2:
-        await update.message.reply_text("❗ Использование:\n/send <user_id> <текст с абзацами и HTML>")
+        await update.message.reply_text(
+            "❗ Использование:\n/send <user_id>\nимя_картинки.jpg\nтекст с абзацами и HTML"
+        )
         return
 
-    user_id = context.args[0]
+    target_user_id = context.args[0]
 
-    text = update.message.text.partition(" ")[2]  # весь текст после команды
-    text = text.partition(" ")[2]  # весь текст после user_id
+    raw_text = update.message.text.partition(" ")[2]
+    raw_text = raw_text.partition(" ")[2]
 
-   llines = text.splitlines()
-image = None
-if lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-    image = lines[0]
-    text = "\n".join(lines[1:])
+    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+    image = None
 
-
+    if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
+        image = lines[0]
+        text = "\n".join(lines[1:])
+    else:
+        text = "\n".join(lines)
 
     try:
-        chat = await context.bot.get_chat(int(user_id))
+        chat = await context.bot.get_chat(int(target_user_id))
         full_name = f"{chat.first_name} {chat.last_name or ''}".strip()
         personalized_text = f"Привет, {full_name}!\n\n{text}"
 
-        await send_photo_or_text(context.bot, int(user_id), personalized_text, image, admin_id=update.effective_user.id)
-        await update.message.reply_text(f"✅ Сообщение отправлено пользователю {user_id}")
+        await send_photo_or_text(
+            context.bot,
+            int(target_user_id),
+            personalized_text,
+            image,
+            admin_id=update.effective_user.id
+        )
+
+        await update.message.reply_text(
+            f"✅ Сообщение отправлено пользователю {target_user_id}"
+        )
+
     except TelegramError as e:
-        await update.message.reply_text(f"❌ Не удалось отправить сообщение: {e}")
+        await update.message.reply_text(
+            f"❌ Не удалось отправить сообщение:\n{e}"
+        )
+
 
 
 # ----------------- MAIN -----------------
@@ -261,6 +285,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
