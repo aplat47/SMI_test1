@@ -165,10 +165,10 @@ async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     first_arg = context.args[0]
     if first_arg.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
         image = first_arg
-        text = context.args[1]
+        text = " ".join(context.args[1:])
     else:
         image = None
-        text = context.args[0]
+        text = " ".join(context.args)
     try:
         with open(USERS_FILE, encoding="utf-8") as f:
             users = f.read().splitlines()
@@ -195,10 +195,10 @@ async def send_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     first_arg = remaining_args[0]
     if first_arg.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
         image = first_arg
-        text = remaining_args[1]
+        text = " ".join(remaining_args[1:])
     else:
         image = None
-        text = remaining_args[0]
+        text = " ".join(remaining_args)
     try:
         chat = await context.bot.get_chat(int(target_user_id))
         full_name = f"{chat.first_name or ''} {chat.last_name or ''}".strip()
@@ -220,10 +220,10 @@ async def send_segment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     first_arg = remaining_args[0]
     if first_arg.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
         image = first_arg
-        text = remaining_args[1]
+        text = " ".join(remaining_args[1:])
     else:
         image = None
-        text = remaining_args[0]
+        text = " ".join(remaining_args)
     users = get_users_by_segment(segment)
     if not users:
         await update.message.reply_text(f"Нет пользователей в сегменте '{segment}'")
@@ -248,10 +248,10 @@ async def schedule_send(update: Update, context: ContextTypes.DEFAULT_TYPE):
     first_arg = remaining_args[0]
     if first_arg.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
         image = first_arg
-        text = remaining_args[1]
+        text = " ".join(remaining_args[1:])
     else:
         image = None
-        text = remaining_args[0]
+        text = " ".join(remaining_args)
     try:
         send_time = datetime.strptime(send_time_str, "%H:%M").time()
     except ValueError:
@@ -352,26 +352,19 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     action = admin_state[admin_id]["action"]
     data = admin_state[admin_id]["data"]
-    text = update.message.text.rstrip()
+    text = update.message.text.strip()
 
-    def split_image_and_text(raw_text: str):
-        """
-        Корректно отделяет имя картинки от текста,
-        СОХРАНЯЯ переносы строк и абзацы
-        """
-        raw_text = raw_text.lstrip()
-        parts = raw_text.split(maxsplit=1)
-
+    def split_image_and_text(text: str):
+        parts = text.split()
         if parts and parts[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-            image = parts[0]
-            message = parts[1] if len(parts) > 1 else ""
-            return image, message
-        return None, raw_text
+            return parts[0], " ".join(parts[1:])
+        return None, text
 
     # ---------- РАССЫЛКА ВСЕМ ----------
     if action == "sendall":
         image, message_text = split_image_and_text(text)
-        context.args = [image] + [message_text] if image else [message_text]
+        context.args = [image] + message_text.split() if image else message_text.split()
+        update.message.text = "/sendall " + " ".join(context.args)
         await send_all(update, context)
         admin_state[admin_id] = {"action": None, "data": {}}
 
@@ -382,7 +375,8 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text("Введите имя картинки (если есть) и текст:")
         else:
             image, message_text = split_image_and_text(text)
-            context.args = [data["user_id"]] + ([image] if image else []) + [message_text]
+            context.args = [data["user_id"]] + ([image] if image else []) + message_text.split()
+            update.message.text = f"/send {' '.join(context.args)}"
             await send_user(update, context)
             admin_state[admin_id] = {"action": None, "data": {}}
 
@@ -393,7 +387,8 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text("Введите имя картинки (если есть) и текст:")
         else:
             image, message_text = split_image_and_text(text)
-            context.args = [data["segment"]] + ([image] if image else []) + [message_text]
+            context.args = [data["segment"]] + ([image] if image else []) + message_text.split()
+            update.message.text = f"/sendsegment {' '.join(context.args)}"
             await send_segment(update, context)
             admin_state[admin_id] = {"action": None, "data": {}}
 
@@ -404,7 +399,8 @@ async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await update.message.reply_text("Введите имя картинки (если есть) и текст:")
         else:
             image, message_text = split_image_and_text(text)
-            context.args = [data["time"]] + ([image] if image else []) + [message_text]
+            context.args = [data["time"]] + ([image] if image else []) + message_text.split()
+            update.message.text = f"/schedule {' '.join(context.args)}"
             await schedule_send(update, context)
             admin_state[admin_id] = {"action": None, "data": {}}
 
@@ -453,5 +449,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
