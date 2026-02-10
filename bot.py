@@ -165,10 +165,10 @@ async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     first_arg = context.args[0]
     if first_arg.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
         image = first_arg
-        text = " ".join(context.args[1:])
+        text = context.args[1]
     else:
         image = None
-        text = " ".join(context.args)
+        text = context.args[0]
     try:
         with open(USERS_FILE, encoding="utf-8") as f:
             users = f.read().splitlines()
@@ -195,10 +195,10 @@ async def send_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     first_arg = remaining_args[0]
     if first_arg.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
         image = first_arg
-        text = " ".join(remaining_args[1:])
+        text = remaining_args[1]
     else:
         image = None
-        text = " ".join(remaining_args)
+        text = remaining_args[0]
     try:
         chat = await context.bot.get_chat(int(target_user_id))
         full_name = f"{chat.first_name or ''} {chat.last_name or ''}".strip()
@@ -220,10 +220,10 @@ async def send_segment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     first_arg = remaining_args[0]
     if first_arg.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
         image = first_arg
-        text = " ".join(remaining_args[1:])
+        text = remaining_args[1]
     else:
         image = None
-        text = " ".join(remaining_args)
+        text = remaining_args[0]
     users = get_users_by_segment(segment)
     if not users:
         await update.message.reply_text(f"Нет пользователей в сегменте '{segment}'")
@@ -248,10 +248,10 @@ async def schedule_send(update: Update, context: ContextTypes.DEFAULT_TYPE):
     first_arg = remaining_args[0]
     if first_arg.lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
         image = first_arg
-        text = " ".join(remaining_args[1:])
+        text = remaining_args[1]
     else:
         image = None
-        text = " ".join(remaining_args)
+        text = remaining_args[0]
     try:
         send_time = datetime.strptime(send_time_str, "%H:%M").time()
     except ValueError:
@@ -453,4 +453,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
