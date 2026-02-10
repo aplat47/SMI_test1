@@ -102,9 +102,9 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     photo_path = "webinar.jpg"
     if os.path.exists(photo_path):
         with open(photo_path, "rb") as photo:
-            await update.message.reply_photo(photo=photo, caption=text, reply_markup=keyboard)
+            await update.message.reply_photo(photo=photo, caption=text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
     else:
-        await update.message.reply_text(text, reply_markup=keyboard)
+        await update.message.reply_text(text, reply_markup=keyboard, parse_mode=ParseMode.HTML)
 
     user_state[user_id] = "DONE"
 
@@ -117,17 +117,18 @@ async def fallback_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def send_photo_or_text(bot, chat_id, text, image=None, admin_id=None):
     try:
         if image:
-            if image.startswith("http"):
-                await bot.send_photo(chat_id=chat_id, photo=image, caption=text, parse_mode=ParseMode.HTML)
-            else:
+            if not image.startswith("http"):
                 if not os.path.exists(image):
                     if admin_id:
                         await bot.send_message(chat_id=admin_id,
                                                text=f"⚠ Файл {image} не найден. Отправка текста без картинки.")
                     await bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.HTML)
+                    return
                 else:
                     with open(image, "rb") as photo:
                         await bot.send_photo(chat_id=chat_id, photo=photo, caption=text, parse_mode=ParseMode.HTML)
+            else:
+                await bot.send_photo(chat_id=chat_id, photo=image, caption=text, parse_mode=ParseMode.HTML)
         else:
             await bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.HTML)
     except TelegramError as e:
@@ -141,7 +142,7 @@ async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if not context.args:
-        await update.message.reply_text("❗ Использование:\n/sendall текст рассылки с абзацами")
+        await update.message.reply_text("❗ Использование:\n/sendall текст рассылки с абзацами и HTML")
         return
 
     text = update.message.text.partition(" ")[2]  # весь текст после команды /sendall
@@ -179,7 +180,7 @@ async def send_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if len(context.args) < 2:
-        await update.message.reply_text("❗ Использование:\n/send <user_id> <текст с абзацами>")
+        await update.message.reply_text("❗ Использование:\n/send <user_id> <текст с абзацами и HTML>")
         return
 
     user_id = context.args[0]
