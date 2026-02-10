@@ -304,7 +304,42 @@ async def show_segment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"Пользователи в сегменте '{segment}':\n" + "\n".join(users))
 
 # ================== АДМИН-ПАНЕЛЬ ==================
-# (Функции admin_panel и admin_button_handler остаются без изменений)
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID: 
+        return
+    keyboard = ReplyKeyboardMarkup([
+        ["✅ Рассылка всем", "📬 Персональная рассылка"],
+        ["🏷 Рассылка сегменту", "⏰ Отложенная рассылка"],
+        ["➕ Добавить в сегмент", "📄 Показать сегмент"]
+    ], resize_keyboard=True, one_time_keyboard=True)
+    await update.message.reply_text("Выберите действие:", reply_markup=keyboard)
+    admin_state[update.effective_user.id] = {"action": None, "data": {}}
+
+async def admin_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+    text = update.message.text
+    actions_map = {
+        "✅ Рассылка всем":"sendall",
+        "📬 Персональная рассылка":"send",
+        "🏷 Рассылка сегменту":"sendsegment",
+        "⏰ Отложенная рассылка":"schedule",
+        "➕ Добавить в сегмент":"addsegment",
+        "📄 Показать сегмент":"showsegment"
+    }
+    if text not in actions_map:
+        return
+    action = actions_map[text]
+    admin_state[update.message.from_user.id] = {"action": action, "data": {}}
+    prompts = {
+        "sendall":"Введите имя картинки (если есть) и текст для рассылки:",
+        "send":"Введите ID пользователя для персональной рассылки:",
+        "sendsegment":"Введите название сегмента для рассылки:",
+        "schedule":"Введите время отправки в формате HH:MM:",
+        "addsegment":"Введите ID пользователя:",
+        "showsegment":"Введите название сегмента:"
+    }
+    await update.message.reply_text(prompts[action])
 
 # ================== ОБРАБОТКА ТЕКСТА АДМИНА ==================
 async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -409,4 +444,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
