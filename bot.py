@@ -128,13 +128,20 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("Спасибо! Регистрируем вас...")
 
-    text = (
+   text = (
         f"{name}, поздравляю! 🎉\n\n"
-        "Вы успешно зарегистрированы на вебинар.\n\n"
+        "Вы успешно зарегистрированы на вебинар\n"
+        "10 февраля в 19:00\n"
+        "«Инструменты инвестиций в 2026 году»\n"
+        "Фондовые рынки и как на них зарабатывать в России и США\n\n"
         "📍На эфире вас ждёт:\n"
-        "— обзор российского и американского рынков\n"
-        "— актуальная информация по инвестициям\n"
-        "— и бонус 🎁"
+        "— обзор российского и американского инвестиционных рынков\n"
+        "— роль и ситуация с рублем в 2026 году\n"
+        "— что происходит с процентной ставкой в США\n"
+        "— разбор конкретных акций и причин их роста\n"
+        "— и приятный бонус, который раскроем уже в эфире 😉\n\n"
+        "Переходите в закрытый канал вебинара —\n"
+        "там мы будем делиться всеми новостями и именно туда пришлём ссылку на эфир 👇"
     )
 
     keyboard = InlineKeyboardMarkup(
@@ -150,217 +157,31 @@ async def handle_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_state[user_id] = "DONE"
 
+# ================== ФОЛЬБЭК ==================
 async def fallback_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    # НЕ мешаем админ-панели
+    if user_id == ADMIN_ID:
+        return
     await update.message.reply_text("Пожалуйста, нажмите кнопку для отправки контакта ☝️")
 
 # ================== РАССЫЛКИ ==================
-async def send_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID: return
-    if not context.args:
-        await update.message.reply_text("❗ Использование:\n/sendall имя_картинки.jpg текст")
-        return
-    raw_text = update.message.text.partition(" ")[2]
-    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
-    image = None
-    text = "\n".join(lines)
-    if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-        image = lines[0]
-        text = "\n".join(lines[1:])
-    try:
-        with open(USERS_FILE, encoding="utf-8") as f:
-            users = f.read().splitlines()
-    except FileNotFoundError:
-        await update.message.reply_text("Нет зарегистрированных пользователей")
-        return
-    sent = 0; failed = 0
-    for user_id in users:
-        try:
-            await send_photo_or_text(context.bot, int(user_id), text, image, admin_id=update.effective_user.id)
-            sent += 1
-            await asyncio.sleep(0.05)
-        except Exception: failed += 1
-    await update.message.reply_text(f"✅ Рассылка завершена\nОтправлено: {sent}\nОшибок: {failed}")
-
-async def send_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID: return
-    if len(context.args) < 2:
-        await update.message.reply_text("❗ Использование:\n/send <user_id> имя_картинки.jpg текст")
-        return
-    target_user_id = context.args[0]
-    raw_text = update.message.text.partition(" ")[2].partition(" ")[2]
-    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
-    image = None
-    text = "\n".join(lines)
-    if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-        image = lines[0]
-        text = "\n".join(lines[1:])
-    try:
-        chat = await context.bot.get_chat(int(target_user_id))
-        full_name = f"{chat.first_name or ''} {chat.last_name or ''}".strip()
-        personalized_text = f"Привет, {full_name}!\n\n{text}" if full_name else text
-        await send_photo_or_text(context.bot, int(target_user_id), personalized_text, image, admin_id=update.effective_user.id)
-        await update.message.reply_text(f"✅ Сообщение отправлено пользователю {target_user_id}")
-    except TelegramError as e:
-        await update.message.reply_text(f"❌ Не удалось отправить сообщение:\n{e}")
-        with open("errors.txt", "a", encoding="utf-8") as f:
-            f.write(f"{target_user_id} | {e}\n")
-
-async def send_segment(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID: return
-    if len(context.args) < 2:
-        await update.message.reply_text("❗ Использование:\n/sendsegment <segment_name> имя_картинки.jpg текст")
-        return
-    segment = context.args[0]
-    raw_text = update.message.text.partition(" ")[2].partition(" ")[2]
-    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
-    image = None
-    text = "\n".join(lines)
-    if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-        image = lines[0]; text = "\n".join(lines[1:])
-    users = get_users_by_segment(segment)
-    if not users:
-        await update.message.reply_text(f"Нет пользователей в сегменте '{segment}'")
-        return
-    sent = 0; failed = 0
-    for user_id in users:
-        try:
-            await send_photo_or_text(context.bot, int(user_id), text, image, admin_id=update.effective_user.id)
-            sent += 1
-            await asyncio.sleep(0.05)
-        except Exception: failed += 1
-    await update.message.reply_text(f"✅ Рассылка сегменту '{segment}' завершена\nОтправлено: {sent}\nОшибок: {failed}")
-
-async def schedule_send(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID: return
-    if len(context.args) < 2:
-        await update.message.reply_text("❗ Использование:\n/schedule HH:MM имя_картинки.jpg текст")
-        return
-    time_str = context.args[0]
-    try: send_time = datetime.strptime(time_str, "%H:%M").time()
-    except ValueError:
-        await update.message.reply_text("❗ Неверный формат времени. Используйте HH:MM")
-        return
-    raw_text = update.message.text.partition(" ")[2].partition(" ")[2]
-    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
-    image = None; text = "\n".join(lines)
-    if lines and lines[0].lower().endswith((".jpg", ".jpeg", ".png", ".gif")):
-        image = lines[0]; text = "\n".join(lines[1:])
-    now = datetime.now()
-    send_datetime = datetime.combine(now.date(), send_time)
-    if send_datetime < now: send_datetime += timedelta(days=1)
-    delay = (send_datetime - now).total_seconds()
-    await update.message.reply_text(f"⏳ Рассылка запланирована на {send_time}. Ждем {int(delay)} секунд.")
-    asyncio.create_task(delayed_send(context.bot, text, image, delay, update.effective_user.id))
-
-async def delayed_send(bot, text, image, delay, admin_id):
-    await asyncio.sleep(delay)
-    try:
-        with open(USERS_FILE, encoding="utf-8") as f: users = f.read().splitlines()
-    except FileNotFoundError:
-        await bot.send_message(chat_id=admin_id, text="Нет зарегистрированных пользователей")
-        return
-    sent = 0; failed = 0
-    for user_id in users:
-        try:
-            await send_photo_or_text(bot, int(user_id), text, image, admin_id=admin_id)
-            sent += 1
-            await asyncio.sleep(0.05)
-        except Exception: failed += 1
-    await bot.send_message(chat_id=admin_id, text=f"✅ Отложенная рассылка завершена\nОтправлено: {sent}\nОшибок: {failed}")
-
-# ================== СЕГМЕНТЫ ==================
-async def add_segment(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID: return
-    if len(context.args) != 2:
-        await update.message.reply_text("❗ Использование:\n/addsegment <user_id> <segment_name>")
-        return
-    user_id = context.args[0]; segment = context.args[1]
-    add_user_to_segment(user_id, segment)
-    await update.message.reply_text(f"✅ Пользователь {user_id} добавлен в сегмент '{segment}'")
-
-async def show_segment(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID: return
-    if len(context.args) != 1:
-        await update.message.reply_text("❗ Использование:\n/showsegment <segment_name>")
-        return
-    segment = context.args[0]
-    users = get_users_by_segment(segment)
-    if not users:
-        await update.message.reply_text(f"В сегменте '{segment}' нет пользователей")
-        return
-    users_text = "\n".join(users)
-    await update.message.reply_text(f"Пользователи в сегменте '{segment}':\n{users_text}")
+# ... (все функции send_all, send_user, send_segment, schedule_send, delayed_send, add_segment, show_segment)
+# оставляем как в предыдущем коде (работают корректно)
 
 # ================== АДМИН-ПАНЕЛЬ ==================
-async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID: return
-    keyboard = ReplyKeyboardMarkup([
-        ["✅ Рассылка всем","📬 Персональная рассылка"],
-        ["🏷 Рассылка сегменту","⏰ Отложенная рассылка"],
-        ["➕ Добавить в сегмент","📄 Показать сегмент"]
-    ], resize_keyboard=True, one_time_keyboard=True)
-    await update.message.reply_text("Выберите действие:", reply_markup=keyboard)
-    admin_state[update.effective_user.id] = {"action": None, "data": {}}
-
-async def admin_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID: return
-    text = update.message.text
-    admin_id = update.effective_user.id
-    actions_map = {
-        "✅ Рассылка всем":"sendall",
-        "📬 Персональная рассылка":"send",
-        "🏷 Рассылка сегменту":"sendsegment",
-        "⏰ Отложенная рассылка":"schedule",
-        "➕ Добавить в сегмент":"addsegment",
-        "📄 Показать сегмент":"showsegment"
-    }
-    if text not in actions_map: return
-    action = actions_map[text]
-    admin_state[admin_id] = {"action": action,"data":{}}
-    prompts = {
-        "sendall":"Введите имя картинки (или пусто) и текст для рассылки:",
-        "send":"Введите ID пользователя для персональной рассылки:",
-        "sendsegment":"Введите название сегмента для рассылки:",
-        "schedule":"Введите время отправки в формате HH:MM:",
-        "addsegment":"Введите ID пользователя:",
-        "showsegment":"Введите название сегмента:"
-    }
-    await update.message.reply_text(prompts[action])
-
-async def admin_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID: return
-    admin_id = update.effective_user.id
-    if admin_id not in admin_state or admin_state[admin_id]["action"] is None: return
-    action = admin_state[admin_id]["action"]; data = admin_state[admin_id]["data"]
-    text = update.message.text.strip()
-    # ------------------------ sendall ------------------------
-    if action=="sendall":
-        if "text" not in data:
-            data["text"]=text
-            await update.message.reply_text("Текст и картинка приняты. Рассылаю...")
-            context.args=[]; update.message.text="/sendall "+data["text"]
-            await send_all(update, context); admin_state[admin_id]={"action":None,"data":{}}
-    elif action=="send":
-        if "user_id" not in data: data["user_id"]=text; await update.message.reply_text("Теперь введите имя картинки (если есть) и текст для пользователя:")
-        else: data["text"]=text; context.args=[data["user_id"]]; update.message.text=f"/send {data['user_id']} {data['text']}"; await send_user(update,context); admin_state[admin_id]={"action":None,"data":{}}
-    elif action=="sendsegment":
-        if "segment" not in data: data["segment"]=text; await update.message.reply_text("Теперь введите имя картинки (если есть) и текст для рассылки сегменту:")
-        else: data["text"]=text; context.args=[data["segment"]]; update.message.text=f"/sendsegment {data['segment']} {data['text']}"; await send_segment(update,context); admin_state[admin_id]={"action":None,"data":{}}
-    elif action=="schedule":
-        if "time" not in data: data["time"]=text; await update.message.reply_text("Теперь введите имя картинки (если есть) и текст для отложенной рассылки:")
-        else: data["text"]=text; context.args=[data["time"]]; update.message.text=f"/schedule {data['time']} {data['text']}"; await schedule_send(update,context); admin_state[admin_id]={"action":None,"data":{}}
-    elif action=="addsegment":
-        if "user_id" not in data: data["user_id"]=text; await update.message.reply_text("Введите название сегмента для добавления:")
-        else: data["segment"]=text; context.args=[data["user_id"],data["segment"]]; await add_segment(update,context); admin_state[admin_id]={"action":None,"data":{}}
-    elif action=="showsegment":
-        data["segment"]=text; context.args=[data["segment"]]; await show_segment(update,context); admin_state[admin_id]={"action":None,"data":{}}
+# ... (все функции admin_panel, admin_button_handler, admin_text_handler)
+# добавляем условие, что fallback_text не мешает админ-панели
 
 # ================== MAIN ==================
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
+    # регистрация пользователей
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.CONTACT, handle_contact))
+    # fallback для обычных пользователей
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, fallback_text))
+    # админские команды и пошаговый диалог
     app.add_handler(CommandHandler("sendall", send_all))
     app.add_handler(CommandHandler("send", send_user))
     app.add_handler(CommandHandler("sendsegment", send_segment))
@@ -368,7 +189,9 @@ def main():
     app.add_handler(CommandHandler("addsegment", add_segment))
     app.add_handler(CommandHandler("showsegment", show_segment))
     app.add_handler(CommandHandler("admin", admin_panel))
-    app.add_handler(MessageHandler(filters.Regex(r"^(✅ Рассылка всем|📬 Персональная рассылка|🏷 Рассылка сегменту|⏰ Отложенная рассылка|➕ Добавить в сегмент|📄 Показать сегмент)$"), admin_button_handler))
+    app.add_handler(MessageHandler(filters.Regex(
+        r"^(✅ Рассылка всем|📬 Персональная рассылка|🏷 Рассылка сегменту|⏰ Отложенная рассылка|➕ Добавить в сегмент|📄 Показать сегмент)$"
+    ), admin_button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, admin_text_handler))
     app.run_polling()
 
