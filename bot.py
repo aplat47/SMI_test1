@@ -17,7 +17,7 @@ from telegram.constants import ParseMode
 import asyncio
 import os
 
-TOKEN = "8385134574:AAFEPPiQD6DnT1eIXUcho98tETB5smNNIBQ"  # замените на свой токен
+TOKEN = "8350316731:AAFJHJhnXJZCETz9F1opdT8v9BECxNk_FQY"  # замените на свой токен
 ADMIN_ID = 268936036  # ваш Telegram ID
 USERS_FILE = "users.txt"
 DATA_FILE = "registrations.txt"
@@ -529,6 +529,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
