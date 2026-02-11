@@ -19,7 +19,7 @@ from telegram.error import TelegramError, RetryAfter
 from telegram.constants import ParseMode
 
 # ================== НАСТРОЙКИ ==================
-TOKEN = "YOUR_TOKEN"
+TOKEN = "8350316731:AAFJHJhnXJZCETz9F1opdT8v9BECxNk_FQY"
 ADMIN_ID = 268936036
 USERS_FILE = "users.txt"
 DATA_FILE = "registrations.txt"
@@ -187,3 +187,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
