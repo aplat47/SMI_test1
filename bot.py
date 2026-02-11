@@ -26,6 +26,85 @@ DATA_FILE = "registrations.txt"
 SEGMENTS_FILE = "segments.txt"
 MEDIA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "media")
 
+# ================== ВСПОМОГАТЕЛЬНЫЕ ==================
+def parse_button(text: str):
+    if "|button=" in text:
+        try:
+            main_text, btn_part = text.split("|button=", 1)
+            btn_text, btn_url = btn_part.split("|", 1)
+            keyboard = InlineKeyboardMarkup(
+                [[InlineKeyboardButton(btn_text.strip(), url=btn_url.strip())]]
+            )
+            return main_text.strip(), keyboard
+        except:
+            return text, None
+    return text, None
+
+def add_user(user_id: int):
+    users = set()
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, encoding="utf-8") as f:
+            users = set(f.read().splitlines())
+    if str(user_id) not in users:
+        users.add(str(user_id))
+        with open(USERS_FILE, "w", encoding="utf-8") as f:
+            f.write("\n".join(users) + "\n")
+
+def add_user_to_segment(user_id: int, segment: str):
+    segment = segment.lower()
+    lines = []
+    if os.path.exists(SEGMENTS_FILE):
+        with open(SEGMENTS_FILE, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+    entry = f"{user_id}|{segment}"
+    if entry not in lines:
+        lines.append(entry)
+        with open(SEGMENTS_FILE, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+
+def get_users_by_segment(segment: str):
+    segment = segment.lower()
+    if not os.path.exists(SEGMENTS_FILE):
+        return []
+    with open(SEGMENTS_FILE, encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    return [line.split("|")[0] for line in lines if line.split("|")[1] == segment]
+
+async def send_photo_or_text(bot, chat_id, text, image=None, admin_id=None):
+    text, keyboard = parse_button(text)
+    try:
+        if image:
+            image_path = os.path.join(MEDIA_DIR, image)
+            if os.path.exists(image_path):
+                with open(image_path, "rb") as photo:
+                    await bot.send_photo(
+                        chat_id=chat_id,
+                        photo=photo,
+                        caption=text,
+                        reply_markup=keyboard,
+                        parse_mode=ParseMode.HTML
+                    )
+            else:
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=text,
+                    reply_markup=keyboard,
+                    parse_mode=ParseMode.HTML
+                )
+        else:
+            await bot.send_message(
+                chat_id=chat_id,
+                text=text,
+                reply_markup=keyboard,
+                parse_mode=ParseMode.HTML
+            )
+    except RetryAfter as e:
+        await asyncio.sleep(e.retry_after)
+        await send_photo_or_text(bot, chat_id, text, image, admin_id)
+    except TelegramError as e:
+        if admin_id:
+            await bot.send_message(chat_id=admin_id, text=f"Ошибка: {e}")
+
 # ================== СОСТОЯНИЯ ==================
 user_state = {}    # для регистрации обычных пользователей
 admin_state = {}   # для пошагового диалога с админом
