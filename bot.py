@@ -1,6 +1,3 @@
-import os
-import asyncio
-from datetime import datetime, timedelta
 from telegram import (
     Update,
     ReplyKeyboardMarkup,
@@ -15,16 +12,21 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
-from telegram.error import TelegramError, RetryAfter
+from telegram.error import TelegramError
 from telegram.constants import ParseMode
+import asyncio
+import os
 
-# ================== НАСТРОЙКИ ==================
-TOKEN = "8350316731:AAFJHJhnXJZCETz9F1opdT8v9BECxNk_FQY"  # замените на свой токен
+TOKEN = "8385134574:AAFEPPiQD6DnT1eIXUcho98tETB5smNNIBQ"  # замените на свой токен
 ADMIN_ID = 268936036  # ваш Telegram ID
 USERS_FILE = "users.txt"
 DATA_FILE = "registrations.txt"
 SEGMENTS_FILE = "segments.txt"
 MEDIA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "media")
+
+# ================== СОСТОЯНИЯ ==================
+user_state = {}    # для регистрации обычных пользователей
+admin_state = {}   # для пошагового диалога с админом
 
 # ================== ВСПОМОГАТЕЛЬНЫЕ ==================
 def parse_button(text: str):
@@ -105,9 +107,6 @@ async def send_photo_or_text(bot, chat_id, text, image=None, admin_id=None):
         if admin_id:
             await bot.send_message(chat_id=admin_id, text=f"Ошибка: {e}")
 
-# ================== СОСТОЯНИЯ ==================
-user_state = {}    # для регистрации обычных пользователей
-admin_state = {}   # для пошагового диалога с админом
 
 # ================== ФУНКЦИИ ==================
 def add_user(user_id: int):
@@ -530,6 +529,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
